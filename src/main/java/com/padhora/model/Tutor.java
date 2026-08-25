@@ -1,5 +1,6 @@
 package com.padhora.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.time.Instant;
 import java.util.List;
@@ -23,21 +24,41 @@ public class Tutor {
     @Column(nullable = false)
     private String area;
 
-    // "At tutor's home" | "Tutor comes to you" | "Online"
-    @Column(nullable = false)
-    private String mode;
+    @JsonIgnore
+    @Column(length = 500)
+    private String fullAddress;
+
+    @ElementCollection
+    @CollectionTable(name = "tutor_modes", joinColumns = @JoinColumn(name = "tutor_id"))
+    @Column(name = "mode")
+    private List<String> modes;
 
     @ElementCollection
     @CollectionTable(name = "tutor_tuition_types", joinColumns = @JoinColumn(name = "tutor_id"))
     @Column(name = "tuition_type")
     private List<String> types;
 
+    @ElementCollection
+    @CollectionTable(name = "tutor_grade_subjects", joinColumns = @JoinColumn(name = "tutor_id"))
+    private List<GradeSubjects> gradeSubjects;
+
+    private String priceType;
     private Integer price;
-
-    // e.g. "/month", "/10-day batch"
     private String priceUnit;
+    private String batchType;
+    private Boolean trialAvailable;
 
-    private String grade;
+    @ElementCollection
+    @CollectionTable(name = "tutor_timings", joinColumns = @JoinColumn(name = "tutor_id"))
+    @Column(name = "timing")
+    private List<String> preferredTimings;
+
+    private String qualification;
+
+    @ElementCollection
+    @CollectionTable(name = "tutor_languages", joinColumns = @JoinColumn(name = "tutor_id"))
+    @Column(name = "language")
+    private List<String> languages;
 
     @Column(length = 1000)
     private String bio;
@@ -51,44 +72,44 @@ public class Tutor {
     @Column(nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 
-    // --- getters and setters ---
-
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
-
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
-
     public String getPhone() { return phone; }
     public void setPhone(String phone) { this.phone = phone; }
-
     public String getArea() { return area; }
     public void setArea(String area) { this.area = area; }
-
-    public String getMode() { return mode; }
-    public void setMode(String mode) { this.mode = mode; }
-
+    public String getFullAddress() { return fullAddress; }
+    public void setFullAddress(String fullAddress) { this.fullAddress = fullAddress; }
+    public List<String> getModes() { return modes; }
+    public void setModes(List<String> modes) { this.modes = modes; }
     public List<String> getTypes() { return types; }
     public void setTypes(List<String> types) { this.types = types; }
-
+    public List<GradeSubjects> getGradeSubjects() { return gradeSubjects; }
+    public void setGradeSubjects(List<GradeSubjects> gradeSubjects) { this.gradeSubjects = gradeSubjects; }
+    public String getPriceType() { return priceType; }
+    public void setPriceType(String priceType) { this.priceType = priceType; }
     public Integer getPrice() { return price; }
     public void setPrice(Integer price) { this.price = price; }
-
     public String getPriceUnit() { return priceUnit; }
     public void setPriceUnit(String priceUnit) { this.priceUnit = priceUnit; }
-
-    public String getGrade() { return grade; }
-    public void setGrade(String grade) { this.grade = grade; }
-
+    public String getBatchType() { return batchType; }
+    public void setBatchType(String batchType) { this.batchType = batchType; }
+    public Boolean getTrialAvailable() { return trialAvailable; }
+    public void setTrialAvailable(Boolean trialAvailable) { this.trialAvailable = trialAvailable; }
+    public List<String> getPreferredTimings() { return preferredTimings; }
+    public void setPreferredTimings(List<String> preferredTimings) { this.preferredTimings = preferredTimings; }
+    public String getQualification() { return qualification; }
+    public void setQualification(String qualification) { this.qualification = qualification; }
+    public List<String> getLanguages() { return languages; }
+    public void setLanguages(List<String> languages) { this.languages = languages; }
     public String getBio() { return bio; }
     public void setBio(String bio) { this.bio = bio; }
-
     public Integer getYearsExperience() { return yearsExperience; }
     public void setYearsExperience(Integer yearsExperience) { this.yearsExperience = yearsExperience; }
-
     public Status getStatus() { return status; }
     public void setStatus(Status status) { this.status = status; }
-
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
 }
