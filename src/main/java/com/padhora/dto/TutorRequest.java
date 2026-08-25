@@ -1,6 +1,5 @@
 package com.padhora.dto;
 
-import com.padhora.model.GradeSubjects;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 
@@ -17,21 +16,15 @@ public class TutorRequest {
     @NotBlank(message = "Area is required")
     private String area;
 
-    private String fullAddress;
-
-    @NotEmpty(message = "At least one mode is required")
-    private List<String> modes;
+    @NotBlank(message = "Mode is required")
+    private String mode;
 
     @NotEmpty(message = "At least one tuition type is required")
     private List<String> types;
 
-    private List<GradeSubjects> gradeSubjects;
-
-    private String priceType;
     private Integer price;
     private String priceUnit;
-    private String qualification;
-    private List<String> languages;
+    private String grade;
     private String bio;
     private Integer yearsExperience;
 
@@ -44,20 +37,11 @@ public class TutorRequest {
     public String getArea() { return area; }
     public void setArea(String area) { this.area = area; }
 
-    public String getFullAddress() { return fullAddress; }
-    public void setFullAddress(String fullAddress) { this.fullAddress = fullAddress; }
-
-    public List<String> getModes() { return modes; }
-    public void setModes(List<String> modes) { this.modes = modes; }
+    public String getMode() { return mode; }
+    public void setMode(String mode) { this.mode = mode; }
 
     public List<String> getTypes() { return types; }
     public void setTypes(List<String> types) { this.types = types; }
-
-    public List<GradeSubjects> getGradeSubjects() { return gradeSubjects; }
-    public void setGradeSubjects(List<GradeSubjects> gradeSubjects) { this.gradeSubjects = gradeSubjects; }
-
-    public String getPriceType() { return priceType; }
-    public void setPriceType(String priceType) { this.priceType = priceType; }
 
     public Integer getPrice() { return price; }
     public void setPrice(Integer price) { this.price = price; }
@@ -65,11 +49,8 @@ public class TutorRequest {
     public String getPriceUnit() { return priceUnit; }
     public void setPriceUnit(String priceUnit) { this.priceUnit = priceUnit; }
 
-    public String getQualification() { return qualification; }
-    public void setQualification(String qualification) { this.qualification = qualification; }
-
-    public List<String> getLanguages() { return languages; }
-    public void setLanguages(List<String> languages) { this.languages = languages; }
+    public String getGrade() { return grade; }
+    public void setGrade(String grade) { this.grade = grade; }
 
     public String getBio() { return bio; }
     public void setBio(String bio) { this.bio = bio; }

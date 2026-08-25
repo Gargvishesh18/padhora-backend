@@ -29,8 +29,6 @@ public class TutorController {
         return adminKey != null && !adminKey.isBlank() && adminKey.equals(providedKey);
     }
 
-    // GET /api/tutors?area=Mohali&mode=Online&type=Exam+Prep
-    // Any param can be omitted to not filter on it. Only APPROVED listings are returned.
     @GetMapping
     public List<Tutor> search(
             @RequestParam(required = false) String area,
@@ -47,22 +45,17 @@ public class TutorController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // POST /api/tutors - a tutor submits their listing. Goes in as PENDING until manually approved.
     @PostMapping
     public ResponseEntity<?> submit(@Valid @RequestBody TutorRequest req) {
         Tutor t = new Tutor();
         t.setName(req.getName());
         t.setPhone(req.getPhone());
         t.setArea(req.getArea());
-        t.setFullAddress(req.getFullAddress());
-        t.setModes(req.getModes());
+        t.setMode(req.getMode());
         t.setTypes(req.getTypes());
-        t.setGradeSubjects(req.getGradeSubjects());
-        t.setPriceType(req.getPriceType());
         t.setPrice(req.getPrice());
         t.setPriceUnit(req.getPriceUnit());
-        t.setQualification(req.getQualification());
-        t.setLanguages(req.getLanguages());
+        t.setGrade(req.getGrade());
         t.setBio(req.getBio());
         t.setYearsExperience(req.getYearsExperience());
         t.setStatus(Tutor.Status.PENDING);
@@ -74,8 +67,6 @@ public class TutorController {
                 "message", "Listing submitted. It will go live once reviewed."
         ));
     }
-
-    // --- Admin endpoints - require X-Admin-Key header matching the padhora.admin-key value ---
 
     @GetMapping("/admin/pending")
     public ResponseEntity<?> pending(@RequestHeader(value = "X-Admin-Key", required = false) String key) {

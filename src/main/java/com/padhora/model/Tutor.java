@@ -1,6 +1,5 @@
 package com.padhora.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.time.Instant;
 import java.util.List;
@@ -21,47 +20,24 @@ public class Tutor {
     @Column(nullable = false)
     private String phone;
 
-    // Public-facing area/locality (e.g. "Mohali") - shown to parents
     @Column(nullable = false)
     private String area;
 
-    // Full address for internal verification only - never returned in public API responses
-    @JsonIgnore
-    @Column(length = 500)
-    private String fullAddress;
-
-    // Multiple modes allowed: a tutor can teach at their home AND online, etc.
-    // Values: "At tutor's home" | "Tutor comes to you" | "Online"
-    @ElementCollection
-    @CollectionTable(name = "tutor_modes", joinColumns = @JoinColumn(name = "tutor_id"))
-    @Column(name = "mode")
-    private List<String> modes;
+    // "At tutor's home" | "Tutor comes to you" | "Online"
+    @Column(nullable = false)
+    private String mode;
 
     @ElementCollection
     @CollectionTable(name = "tutor_tuition_types", joinColumns = @JoinColumn(name = "tutor_id"))
     @Column(name = "tuition_type")
     private List<String> types;
 
-    // Structured class -> subjects rows, since different classes often need different subjects
-    @ElementCollection
-    @CollectionTable(name = "tutor_grade_subjects", joinColumns = @JoinColumn(name = "tutor_id"))
-    private List<GradeSubjects> gradeSubjects;
-
-    // "Fixed" | "Starting from" | "Custom quote"
-    private String priceType;
-
-    // Only meaningful when priceType is Fixed or Starting from
     private Integer price;
 
     // e.g. "/month", "/10-day batch"
     private String priceUnit;
 
-    private String qualification;
-
-    @ElementCollection
-    @CollectionTable(name = "tutor_languages", joinColumns = @JoinColumn(name = "tutor_id"))
-    @Column(name = "language")
-    private List<String> languages;
+    private String grade;
 
     @Column(length = 1000)
     private String bio;
@@ -89,20 +65,11 @@ public class Tutor {
     public String getArea() { return area; }
     public void setArea(String area) { this.area = area; }
 
-    public String getFullAddress() { return fullAddress; }
-    public void setFullAddress(String fullAddress) { this.fullAddress = fullAddress; }
-
-    public List<String> getModes() { return modes; }
-    public void setModes(List<String> modes) { this.modes = modes; }
+    public String getMode() { return mode; }
+    public void setMode(String mode) { this.mode = mode; }
 
     public List<String> getTypes() { return types; }
     public void setTypes(List<String> types) { this.types = types; }
-
-    public List<GradeSubjects> getGradeSubjects() { return gradeSubjects; }
-    public void setGradeSubjects(List<GradeSubjects> gradeSubjects) { this.gradeSubjects = gradeSubjects; }
-
-    public String getPriceType() { return priceType; }
-    public void setPriceType(String priceType) { this.priceType = priceType; }
 
     public Integer getPrice() { return price; }
     public void setPrice(Integer price) { this.price = price; }
@@ -110,11 +77,8 @@ public class Tutor {
     public String getPriceUnit() { return priceUnit; }
     public void setPriceUnit(String priceUnit) { this.priceUnit = priceUnit; }
 
-    public String getQualification() { return qualification; }
-    public void setQualification(String qualification) { this.qualification = qualification; }
-
-    public List<String> getLanguages() { return languages; }
-    public void setLanguages(List<String> languages) { this.languages = languages; }
+    public String getGrade() { return grade; }
+    public void setGrade(String grade) { this.grade = grade; }
 
     public String getBio() { return bio; }
     public void setBio(String bio) { this.bio = bio; }
