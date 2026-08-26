@@ -70,6 +70,8 @@ public class TutorController {
         t.setQualification(req.getQualification());
         t.setLanguages(req.getLanguages());
         t.setBio(req.getBio());
+        t.setPhotoUrl(req.getPhotoUrl());
+        t.setVideoUrl(req.getVideoUrl());
         t.setYearsExperience(req.getYearsExperience());
         t.setStatus(Tutor.Status.PENDING);
 
@@ -105,6 +107,8 @@ public class TutorController {
         m.put("qualification", t.getQualification());
         m.put("languages", t.getLanguages());
         m.put("bio", t.getBio());
+        m.put("photoUrl", t.getPhotoUrl());
+        m.put("videoUrl", t.getVideoUrl());
         m.put("yearsExperience", t.getYearsExperience());
         m.put("status", t.getStatus());
         m.put("createdAt", t.getCreatedAt());

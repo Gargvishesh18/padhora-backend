@@ -40,6 +40,8 @@ public class TutorRequest {
     private String qualification;
     private List<String> languages;
     private String bio;
+    private String photoUrl;
+    private String videoUrl;
     private Integer yearsExperience;
 
     public String getName() { return name; }
@@ -80,6 +82,10 @@ public class TutorRequest {
     public void setLanguages(List<String> languages) { this.languages = languages; }
     public String getBio() { return bio; }
     public void setBio(String bio) { this.bio = bio; }
+    public String getPhotoUrl() { return photoUrl; }
+    public void setPhotoUrl(String photoUrl) { this.photoUrl = photoUrl; }
+    public String getVideoUrl() { return videoUrl; }
+    public void setVideoUrl(String videoUrl) { this.videoUrl = videoUrl; }
     public Integer getYearsExperience() { return yearsExperience; }
     public void setYearsExperience(Integer yearsExperience) { this.yearsExperience = yearsExperience; }
 }
