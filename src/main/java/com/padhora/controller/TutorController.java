@@ -83,10 +83,44 @@ public class TutorController {
 
     // --- Admin endpoints - require X-Admin-Key header matching the padhora.admin-key value ---
 
+    private Map<String, Object> toAdminView(Tutor t) {
+        Map<String, Object> m = new java.util.LinkedHashMap<>();
+        m.put("id", t.getId());
+        m.put("name", t.getName());
+        m.put("phone", t.getPhone());
+        m.put("area", t.getArea());
+        m.put("locality", t.getLocality());
+        m.put("latitude", t.getLatitude());
+        m.put("longitude", t.getLongitude());
+        m.put("fullAddress", t.getFullAddress());
+        m.put("modes", t.getModes());
+        m.put("types", t.getTypes());
+        m.put("gradeSubjects", t.getGradeSubjects());
+        m.put("priceType", t.getPriceType());
+        m.put("price", t.getPrice());
+        m.put("priceUnit", t.getPriceUnit());
+        m.put("batchType", t.getBatchType());
+        m.put("trialAvailable", t.getTrialAvailable());
+        m.put("preferredTimings", t.getPreferredTimings());
+        m.put("qualification", t.getQualification());
+        m.put("languages", t.getLanguages());
+        m.put("bio", t.getBio());
+        m.put("yearsExperience", t.getYearsExperience());
+        m.put("status", t.getStatus());
+        m.put("createdAt", t.getCreatedAt());
+        return m;
+    }
+
     @GetMapping("/admin/pending")
     public ResponseEntity<?> pending(@RequestHeader(value = "X-Admin-Key", required = false) String key) {
         if (!isAuthorized(key)) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        return ResponseEntity.ok(tutorRepository.findByStatus(Tutor.Status.PENDING));
+        return ResponseEntity.ok(tutorRepository.findByStatus(Tutor.Status.PENDING).stream().map(this::toAdminView).toList());
+    }
+
+    @GetMapping("/admin/all")
+    public ResponseEntity<?> all(@RequestHeader(value = "X-Admin-Key", required = false) String key) {
+        if (!isAuthorized(key)) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        return ResponseEntity.ok(tutorRepository.findAll().stream().map(this::toAdminView).toList());
     }
 
     @PatchMapping("/admin/{id}/approve")
@@ -107,5 +141,13 @@ public class TutorController {
             tutorRepository.save(t);
             return ResponseEntity.ok(Map.of("id", id, "status", "REJECTED"));
         }).orElse(ResponseEntity.notFound().build());
+    }
+
+    @DeleteMapping("/admin/{id}")
+    public ResponseEntity<?> delete(@PathVariable Long id, @RequestHeader(value = "X-Admin-Key", required = false) String key) {
+        if (!isAuthorized(key)) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        if (!tutorRepository.existsById(id)) return ResponseEntity.notFound().build();
+        tutorRepository.deleteById(id);
+        return ResponseEntity.ok(Map.of("id", id, "deleted", true));
     }
 }
