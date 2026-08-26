@@ -9,19 +9,24 @@ import java.util.List;
 @Table(name = "tutors")
 public class Tutor {
 
-    public enum Status { PENDING, APPROVED, REJECTED }
+    public enum Status { DRAFT, PENDING, APPROVED, REJECTED }
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    // Login credentials - present for tutors who signed up via the auth flow.
+    // Nullable because older listings (submitted before auth existed) have neither.
+    @Column(unique = true)
+    private String email;
+
+    @JsonIgnore
+    private String passwordHash;
+
     private String name;
 
-    @Column(nullable = false)
     private String phone;
 
-    @Column(nullable = false)
     private String area;
 
     // Specific locality/sector within the area, e.g. "Phase 5, Mohali" - from Places autocomplete
@@ -76,13 +81,17 @@ public class Tutor {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private Status status = Status.PENDING;
+    private Status status = Status.DRAFT;
 
     @Column(nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
+    public String getPasswordHash() { return passwordHash; }
+    public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
     public String getPhone() { return phone; }

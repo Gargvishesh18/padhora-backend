@@ -83,6 +83,64 @@ public class TutorController {
         ));
     }
 
+    // --- Logged-in tutor's own profile (requires a valid JWT - see security/JwtAuthFilter) ---
+
+    private Long currentTutorId() {
+        var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !(auth.getPrincipal() instanceof Long)) return null;
+        return (Long) auth.getPrincipal();
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<?> getMe() {
+        Long tutorId = currentTutorId();
+        if (tutorId == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        return tutorRepository.findById(tutorId)
+                .<ResponseEntity<?>>map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PutMapping("/me")
+    public ResponseEntity<?> updateMe(@Valid @RequestBody TutorRequest req) {
+        Long tutorId = currentTutorId();
+        if (tutorId == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        return tutorRepository.findById(tutorId).map(t -> {
+            t.setName(req.getName());
+            t.setPhone(req.getPhone());
+            t.setArea(req.getArea());
+            t.setFullAddress(req.getFullAddress());
+            t.setLocality(req.getLocality());
+            t.setLatitude(req.getLatitude());
+            t.setLongitude(req.getLongitude());
+            t.setModes(req.getModes());
+            t.setTypes(req.getTypes());
+            t.setGradeSubjects(req.getGradeSubjects());
+            t.setPriceType(req.getPriceType());
+            t.setPrice(req.getPrice());
+            t.setPriceUnit(req.getPriceUnit());
+            t.setBatchType(req.getBatchType());
+            t.setTrialAvailable(req.getTrialAvailable());
+            t.setPreferredTimings(req.getPreferredTimings());
+            t.setQualification(req.getQualification());
+            t.setLanguages(req.getLanguages());
+            t.setBio(req.getBio());
+            t.setPhotoUrl(req.getPhotoUrl());
+            t.setVideoUrl(req.getVideoUrl());
+            t.setYearsExperience(req.getYearsExperience());
+            // First real save of a completed profile moves it from DRAFT into the review queue.
+            // Edits after that go back to PENDING too, so admin re-checks anything a tutor changes.
+            if (t.getStatus() == Tutor.Status.DRAFT || t.getStatus() == Tutor.Status.APPROVED) {
+                t.setStatus(Tutor.Status.PENDING);
+            }
+            Tutor saved = tutorRepository.save(t);
+            return ResponseEntity.ok(Map.of(
+                    "id", saved.getId(),
+                    "status", saved.getStatus().toString(),
+                    "message", "Saved. Your listing will be reviewed before it's visible to parents."
+            ));
+        }).orElse(ResponseEntity.notFound().build());
+    }
+
     // --- Admin endpoints - require X-Admin-Key header matching the padhora.admin-key value ---
 
     private Map<String, Object> toAdminView(Tutor t) {
