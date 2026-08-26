@@ -17,6 +17,10 @@ public class TutorRequest {
     @NotBlank(message = "Area is required")
     private String area;
 
+    private String locality;
+    private Double latitude;
+    private Double longitude;
+
     private String fullAddress;
 
     @NotEmpty(message = "At least one mode is required")
@@ -44,6 +48,12 @@ public class TutorRequest {
     public void setPhone(String phone) { this.phone = phone; }
     public String getArea() { return area; }
     public void setArea(String area) { this.area = area; }
+    public String getLocality() { return locality; }
+    public void setLocality(String locality) { this.locality = locality; }
+    public Double getLatitude() { return latitude; }
+    public void setLatitude(Double latitude) { this.latitude = latitude; }
+    public Double getLongitude() { return longitude; }
+    public void setLongitude(Double longitude) { this.longitude = longitude; }
     public String getFullAddress() { return fullAddress; }
     public void setFullAddress(String fullAddress) { this.fullAddress = fullAddress; }
     public List<String> getModes() { return modes; }
