@@ -49,6 +49,16 @@ public class Enquiry {
     @Column(nullable = false)
     private Status status = Status.NEW;
 
+    // Per-stage timestamps - status alone only tells you where a request IS now, not the
+    // history of how it got there. These let you answer "how long did it take this tutor to
+    // accept?" or build a real funnel later, without needing a separate event-log table.
+    private Instant viewedAt;
+    private Instant acceptedAt;
+    private Instant declinedAt;
+    private Instant connectedAt;
+    private Instant tuitionStartedAt;
+    private Instant completedAt;
+
     private Instant whatsappClickedAt;
 
     @Column(nullable = false, updatable = false)
@@ -86,6 +96,18 @@ public class Enquiry {
     public void setMessage(String message) { this.message = message; }
     public Status getStatus() { return status; }
     public void setStatus(Status status) { this.status = status; }
+    public Instant getViewedAt() { return viewedAt; }
+    public void setViewedAt(Instant viewedAt) { this.viewedAt = viewedAt; }
+    public Instant getAcceptedAt() { return acceptedAt; }
+    public void setAcceptedAt(Instant acceptedAt) { this.acceptedAt = acceptedAt; }
+    public Instant getDeclinedAt() { return declinedAt; }
+    public void setDeclinedAt(Instant declinedAt) { this.declinedAt = declinedAt; }
+    public Instant getConnectedAt() { return connectedAt; }
+    public void setConnectedAt(Instant connectedAt) { this.connectedAt = connectedAt; }
+    public Instant getTuitionStartedAt() { return tuitionStartedAt; }
+    public void setTuitionStartedAt(Instant tuitionStartedAt) { this.tuitionStartedAt = tuitionStartedAt; }
+    public Instant getCompletedAt() { return completedAt; }
+    public void setCompletedAt(Instant completedAt) { this.completedAt = completedAt; }
     public Instant getWhatsappClickedAt() { return whatsappClickedAt; }
     public void setWhatsappClickedAt(Instant whatsappClickedAt) { this.whatsappClickedAt = whatsappClickedAt; }
     public Instant getCreatedAt() { return createdAt; }

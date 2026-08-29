@@ -11,11 +11,12 @@ public interface EnquiryRepository extends JpaRepository<Enquiry, Long> {
 
     Optional<Enquiry> findByPublicToken(String publicToken);
 
-    // Tutor's inbox - newest first.
-    List<Enquiry> findByTutorIdOrderByCreatedAtDesc(Long tutorId);
+    // Tutor's inbox - newest first, capped so a high-volume tutor's dashboard doesn't
+    // eventually load an unbounded list.
+    List<Enquiry> findTop200ByTutorIdOrderByCreatedAtDesc(Long tutorId);
 
     // Parent's "My Requests" - everything filed under a phone number, across however many kids.
-    List<Enquiry> findByParentPhoneOrderByCreatedAtDesc(String parentPhone);
+    List<Enquiry> findTop100ByParentPhoneOrderByCreatedAtDesc(String parentPhone);
 
     // Duplicate-submission guard: same parent hitting the same tutor again within a short window
     // is almost certainly a double-click/retry, not a second genuine request.

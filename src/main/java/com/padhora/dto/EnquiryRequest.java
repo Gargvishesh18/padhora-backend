@@ -16,8 +16,8 @@ public class EnquiryRequest {
     @NotBlank(message = "Your phone number is required")
     private String parentPhone;
 
-    @Size(max = 100) private String className;
-    @Size(max = 100) private String subject;
+    @NotBlank(message = "Please select a class") @Size(max = 100) private String className;
+    @NotBlank(message = "Please select a subject") @Size(max = 100) private String subject;
     @Size(max = 100) private String mode;
     @Size(max = 150) private String locality;
     @Size(max = 150) private String preferredTiming;

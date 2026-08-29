@@ -131,6 +131,12 @@ public class EnquiryController {
         m.put("budget", e.getBudget());
         m.put("status", e.getStatus().toString());
         m.put("createdAt", e.getCreatedAt());
+        m.put("viewedAt", e.getViewedAt());
+        m.put("acceptedAt", e.getAcceptedAt());
+        m.put("declinedAt", e.getDeclinedAt());
+        m.put("connectedAt", e.getConnectedAt());
+        m.put("tuitionStartedAt", e.getTuitionStartedAt());
+        m.put("completedAt", e.getCompletedAt());
         m.put("updatedAt", e.getUpdatedAt());
         return m;
     }
@@ -202,7 +208,7 @@ public class EnquiryController {
     public ResponseEntity<?> mine(@RequestHeader(value = "X-Session-Token", required = false) String sessionToken) {
         String phone = otpService.resolveSession(sessionToken);
         if (phone == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        List<Map<String, Object>> result = enquiryRepository.findByParentPhoneOrderByCreatedAtDesc(phone)
+        List<Map<String, Object>> result = enquiryRepository.findTop100ByParentPhoneOrderByCreatedAtDesc(phone)
                 .stream().map(this::toParentView).toList();
         return ResponseEntity.ok(result);
     }
@@ -224,10 +230,10 @@ public class EnquiryController {
         Long tutorId = currentTutorId();
         if (tutorId == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
 
-        List<Enquiry> enquiries = enquiryRepository.findByTutorIdOrderByCreatedAtDesc(tutorId);
+        List<Enquiry> enquiries = enquiryRepository.findTop200ByTutorIdOrderByCreatedAtDesc(tutorId);
         enquiries.stream()
                 .filter(e -> e.getStatus() == Enquiry.Status.NEW)
-                .forEach(e -> e.setStatus(Enquiry.Status.VIEWED));
+                .forEach(e -> { e.setStatus(Enquiry.Status.VIEWED); e.setViewedAt(Instant.now()); });
         enquiryRepository.saveAll(enquiries);
 
         return ResponseEntity.ok(enquiries);
@@ -264,6 +270,15 @@ public class EnquiryController {
         }
 
         e.setStatus(newStatus);
+        Instant now = Instant.now();
+        switch (newStatus) {
+            case ACCEPTED -> e.setAcceptedAt(now);
+            case DECLINED -> e.setDeclinedAt(now);
+            case CONNECTED -> e.setConnectedAt(now);
+            case TUITION_STARTED -> e.setTuitionStartedAt(now);
+            case COMPLETED -> e.setCompletedAt(now);
+            default -> {}
+        }
         enquiryRepository.save(e);
         return ResponseEntity.ok(Map.of("id", e.getId(), "status", e.getStatus().toString()));
     }
