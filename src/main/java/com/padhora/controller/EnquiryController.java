@@ -45,7 +45,7 @@ public class EnquiryController {
     static {
         ALLOWED_TRANSITIONS.put(Enquiry.Status.NEW, EnumSet.of(Enquiry.Status.VIEWED, Enquiry.Status.ACCEPTED, Enquiry.Status.DECLINED));
         ALLOWED_TRANSITIONS.put(Enquiry.Status.VIEWED, EnumSet.of(Enquiry.Status.ACCEPTED, Enquiry.Status.DECLINED));
-        ALLOWED_TRANSITIONS.put(Enquiry.Status.ACCEPTED, EnumSet.of(Enquiry.Status.CONNECTED, Enquiry.Status.DECLINED));
+        ALLOWED_TRANSITIONS.put(Enquiry.Status.ACCEPTED, EnumSet.of(Enquiry.Status.CONNECTED));
         ALLOWED_TRANSITIONS.put(Enquiry.Status.CONNECTED, EnumSet.of(Enquiry.Status.TUITION_STARTED));
         ALLOWED_TRANSITIONS.put(Enquiry.Status.TUITION_STARTED, EnumSet.of(Enquiry.Status.COMPLETED));
         // DECLINED, COMPLETED, EXPIRED are terminal - no further tutor-driven transitions out of them.
@@ -77,10 +77,12 @@ public class EnquiryController {
         }
         String parentPhone = PhoneUtil.toE164(req.getParentPhone());
 
-        // Duplicate guard: same parent + same tutor within the last couple of minutes -
-        // return the existing request instead of creating a new one.
-        var recent = enquiryRepository.findFirstByTutorIdAndParentPhoneAndCreatedAtAfterOrderByCreatedAtDesc(
-                tutor.getId(), parentPhone, Instant.now().minus(DUPLICATE_WINDOW));
+        // Duplicate guard: same parent + same tutor + same subject/class within the last couple
+        // of minutes - return the existing request instead of creating a new one. Scoped to
+        // subject+class (not just tutor+phone) so a parent submitting for two different kids/
+        // subjects back-to-back still gets two real enquiries, not one merged into the other.
+        var recent = enquiryRepository.findFirstByTutorIdAndParentPhoneAndSubjectAndClassNameAndCreatedAtAfterOrderByCreatedAtDesc(
+                tutor.getId(), parentPhone, req.getSubject(), req.getClassName(), Instant.now().minus(DUPLICATE_WINDOW));
         if (recent.isPresent()) {
             Enquiry existing = recent.get();
             return ResponseEntity.status(HttpStatus.CREATED).body(Map.of(

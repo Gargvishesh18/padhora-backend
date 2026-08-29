@@ -18,8 +18,10 @@ public interface EnquiryRepository extends JpaRepository<Enquiry, Long> {
     // Parent's "My Requests" - everything filed under a phone number, across however many kids.
     List<Enquiry> findTop100ByParentPhoneOrderByCreatedAtDesc(String parentPhone);
 
-    // Duplicate-submission guard: same parent hitting the same tutor again within a short window
-    // is almost certainly a double-click/retry, not a second genuine request.
-    Optional<Enquiry> findFirstByTutorIdAndParentPhoneAndCreatedAtAfterOrderByCreatedAtDesc(
-            Long tutorId, String parentPhone, Instant after);
+    // Duplicate-submission guard: same parent hitting the same tutor for the same subject+class
+    // again within a short window is almost certainly a double-click/retry. Subject+class are
+    // part of the key so two genuinely different requests (e.g. two kids, same tutor) within the
+    // window are never merged into one.
+    Optional<Enquiry> findFirstByTutorIdAndParentPhoneAndSubjectAndClassNameAndCreatedAtAfterOrderByCreatedAtDesc(
+            Long tutorId, String parentPhone, String subject, String className, Instant after);
 }
