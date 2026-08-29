@@ -2,6 +2,7 @@ package com.padhora.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 public class EnquiryRequest {
 
@@ -9,17 +10,20 @@ public class EnquiryRequest {
     private Long tutorId;
 
     @NotBlank(message = "Your name is required")
+    @Size(max = 120)
     private String parentName;
 
     @NotBlank(message = "Your phone number is required")
     private String parentPhone;
 
-    private String className;
-    private String subject;
-    private String mode;
-    private String locality;
-    private String preferredTiming;
-    private String budget;
+    @Size(max = 100) private String className;
+    @Size(max = 100) private String subject;
+    @Size(max = 100) private String mode;
+    @Size(max = 150) private String locality;
+    @Size(max = 150) private String preferredTiming;
+    @Size(max = 100) private String budget;
+
+    @Size(max = 1000, message = "That message is a bit too long - please keep it under 1000 characters.")
     private String message;
 
     public Long getTutorId() { return tutorId; }

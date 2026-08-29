@@ -3,6 +3,7 @@ package com.padhora.repository;
 import com.padhora.model.Enquiry;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -15,4 +16,9 @@ public interface EnquiryRepository extends JpaRepository<Enquiry, Long> {
 
     // Parent's "My Requests" - everything filed under a phone number, across however many kids.
     List<Enquiry> findByParentPhoneOrderByCreatedAtDesc(String parentPhone);
+
+    // Duplicate-submission guard: same parent hitting the same tutor again within a short window
+    // is almost certainly a double-click/retry, not a second genuine request.
+    Optional<Enquiry> findFirstByTutorIdAndParentPhoneAndCreatedAtAfterOrderByCreatedAtDesc(
+            Long tutorId, String parentPhone, Instant after);
 }

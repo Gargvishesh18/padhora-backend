@@ -12,7 +12,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Duration;
 import java.time.Instant;
+import java.util.EnumMap;
+import java.util.EnumSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -31,6 +35,22 @@ public class EnquiryController {
         this.otpService = otpService;
     }
 
+    // Same parent hitting the same tutor again within this window is treated as a
+    // double-click/retry, not a second genuine enquiry - see submit().
+    private static final Duration DUPLICATE_WINDOW = Duration.ofMinutes(2);
+
+    // Enquiry lifecycle state machine: which statuses a tutor can move an enquiry TO,
+    // from a given current status. Anything not listed here is rejected.
+    private static final Map<Enquiry.Status, EnumSet<Enquiry.Status>> ALLOWED_TRANSITIONS = new EnumMap<>(Enquiry.Status.class);
+    static {
+        ALLOWED_TRANSITIONS.put(Enquiry.Status.NEW, EnumSet.of(Enquiry.Status.VIEWED, Enquiry.Status.ACCEPTED, Enquiry.Status.DECLINED));
+        ALLOWED_TRANSITIONS.put(Enquiry.Status.VIEWED, EnumSet.of(Enquiry.Status.ACCEPTED, Enquiry.Status.DECLINED));
+        ALLOWED_TRANSITIONS.put(Enquiry.Status.ACCEPTED, EnumSet.of(Enquiry.Status.CONNECTED, Enquiry.Status.DECLINED));
+        ALLOWED_TRANSITIONS.put(Enquiry.Status.CONNECTED, EnumSet.of(Enquiry.Status.TUITION_STARTED));
+        ALLOWED_TRANSITIONS.put(Enquiry.Status.TUITION_STARTED, EnumSet.of(Enquiry.Status.COMPLETED));
+        // DECLINED, COMPLETED, EXPIRED are terminal - no further tutor-driven transitions out of them.
+    }
+
     // ==========================================================
     // PARENT SIDE - no login. Identity = phone number (+ OTP for lookups).
     // ==========================================================
@@ -41,7 +61,8 @@ public class EnquiryController {
     }
 
     // "Request Tutor" form submit. No OTP needed here - submitting is low-risk (worst case,
-    // spam enquiries), it's re-reading someone else's enquiries later that needs proof of ownership.
+    // spam enquiries, which the duplicate-window check below also guards against), it's
+    // re-reading someone else's enquiries later that needs proof of ownership.
     @PostMapping
     public ResponseEntity<?> submit(@Valid @RequestBody EnquiryRequest req) {
         Tutor tutor = tutorRepository.findById(req.getTutorId())
@@ -51,11 +72,30 @@ public class EnquiryController {
             return ResponseEntity.badRequest().body(Map.of("error", "That tutor listing isn't available."));
         }
 
+        if (!PhoneUtil.isPlausible(req.getParentPhone())) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Please enter a valid phone number."));
+        }
+        String parentPhone = PhoneUtil.toE164(req.getParentPhone());
+
+        // Duplicate guard: same parent + same tutor within the last couple of minutes -
+        // return the existing request instead of creating a new one.
+        var recent = enquiryRepository.findFirstByTutorIdAndParentPhoneAndCreatedAtAfterOrderByCreatedAtDesc(
+                tutor.getId(), parentPhone, Instant.now().minus(DUPLICATE_WINDOW));
+        if (recent.isPresent()) {
+            Enquiry existing = recent.get();
+            return ResponseEntity.status(HttpStatus.CREATED).body(Map.of(
+                    "id", existing.getId(),
+                    "publicToken", existing.getPublicToken(),
+                    "status", existing.getStatus().toString(),
+                    "message", "Your request has been sent."
+            ));
+        }
+
         Enquiry e = new Enquiry();
         e.setTutorId(tutor.getId());
         e.setPublicToken(UUID.randomUUID().toString());
         e.setParentName(req.getParentName());
-        e.setParentPhone(PhoneUtil.toE164(req.getParentPhone()));
+        e.setParentPhone(parentPhone);
         e.setClassName(req.getClassName());
         e.setSubject(req.getSubject());
         e.setMode(req.getMode());
@@ -74,12 +114,33 @@ public class EnquiryController {
         ));
     }
 
+    // Builds the parent-facing view of an enquiry, including the tutor's name (the Enquiry row
+    // itself only stores tutorId - without this, "My Requests" can't say which tutor a request
+    // is for, which is the whole point of the list when a parent has more than one kid/request).
+    private Map<String, Object> toParentView(Enquiry e) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("id", e.getId());
+        m.put("publicToken", e.getPublicToken());
+        m.put("tutorId", e.getTutorId());
+        m.put("tutorName", tutorRepository.findById(e.getTutorId()).map(Tutor::getName).orElse("Tutor"));
+        m.put("className", e.getClassName());
+        m.put("subject", e.getSubject());
+        m.put("mode", e.getMode());
+        m.put("locality", e.getLocality());
+        m.put("preferredTiming", e.getPreferredTiming());
+        m.put("budget", e.getBudget());
+        m.put("status", e.getStatus().toString());
+        m.put("createdAt", e.getCreatedAt());
+        m.put("updatedAt", e.getUpdatedAt());
+        return m;
+    }
+
     // Success-screen deep link / status check for one specific request - the opaque token
     // stands in for auth here since it's only ever known to the parent who just submitted it.
     @GetMapping("/track/{token}")
     public ResponseEntity<?> track(@PathVariable String token) {
         return enquiryRepository.findByPublicToken(token)
-                .<ResponseEntity<?>>map(ResponseEntity::ok)
+                .<ResponseEntity<?>>map(e -> ResponseEntity.ok(toParentView(e)))
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -93,22 +154,27 @@ public class EnquiryController {
         }).orElse(ResponseEntity.notFound().build());
     }
 
-    // --- "My Requests": phone + OTP, no account. See OtpService for the stub-mode explanation. ---
+    // --- "My Requests": phone + OTP, no account. See OtpService for the lockout/stub-mode details. ---
 
     @PostMapping("/request-otp")
     public ResponseEntity<?> requestOtp(@RequestBody OtpRequest req) {
-        if (req.phone == null || req.phone.isBlank()) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Phone number is required."));
+        if (!PhoneUtil.isPlausible(req.phone)) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Please enter a valid phone number."));
         }
         String e164 = PhoneUtil.toE164(req.phone);
-        String stubCode = otpService.request(e164);
+        var outcome = otpService.request(e164);
 
-        var body = new java.util.LinkedHashMap<String, Object>();
+        if (outcome.result == OtpService.RequestResult.THROTTLED) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body(Map.of("error", "A code was just sent - please wait a bit before requesting another."));
+        }
+
+        var body = new LinkedHashMap<String, Object>();
         body.put("message", "We've sent a code to " + e164 + ".");
         if (otpService.isStubMode()) {
             // STUB MODE: no SMS provider connected yet, so the code is echoed here for testing.
-            // Remove this once a real SMS provider is wired into OtpService.
-            body.put("devOtp", stubCode);
+            // Only active when PADHORA_OTP_STUB_MODE=true is explicitly set - see OtpService.
+            body.put("devOtp", outcome.code);
             body.put("stubMode", true);
         }
         return ResponseEntity.ok(body);
@@ -120,18 +186,25 @@ public class EnquiryController {
             return ResponseEntity.badRequest().body(Map.of("error", "Phone and code are required."));
         }
         String e164 = PhoneUtil.toE164(req.phone);
-        String sessionToken = otpService.verify(e164, req.code.trim());
-        if (sessionToken == null) {
+        var outcome = otpService.verify(e164, req.code.trim());
+
+        if (outcome.result == OtpService.VerifyResult.LOCKED) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body(Map.of("error", "Too many incorrect attempts. Please try again in 15 minutes."));
+        }
+        if (outcome.result == OtpService.VerifyResult.INCORRECT) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Incorrect or expired code."));
         }
-        return ResponseEntity.ok(Map.of("sessionToken", sessionToken));
+        return ResponseEntity.ok(Map.of("sessionToken", outcome.sessionToken));
     }
 
     @GetMapping("/mine")
     public ResponseEntity<?> mine(@RequestHeader(value = "X-Session-Token", required = false) String sessionToken) {
         String phone = otpService.resolveSession(sessionToken);
         if (phone == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        return ResponseEntity.ok(enquiryRepository.findByParentPhoneOrderByCreatedAtDesc(phone));
+        List<Map<String, Object>> result = enquiryRepository.findByParentPhoneOrderByCreatedAtDesc(phone)
+                .stream().map(this::toParentView).toList();
+        return ResponseEntity.ok(result);
     }
 
     // ==========================================================
@@ -183,6 +256,13 @@ public class EnquiryController {
         if (!e.getTutorId().equals(tutorId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", "Not your enquiry."));
         }
+
+        EnumSet<Enquiry.Status> allowed = ALLOWED_TRANSITIONS.getOrDefault(e.getStatus(), EnumSet.noneOf(Enquiry.Status.class));
+        if (!allowed.contains(newStatus)) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "error", "Can't move a " + e.getStatus() + " request to " + newStatus + "."));
+        }
+
         e.setStatus(newStatus);
         enquiryRepository.save(e);
         return ResponseEntity.ok(Map.of("id", e.getId(), "status", e.getStatus().toString()));

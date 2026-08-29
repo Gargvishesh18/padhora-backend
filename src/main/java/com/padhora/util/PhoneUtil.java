@@ -20,4 +20,11 @@ public final class PhoneUtil {
         // pass through with a leading + rather than guessing wrong.
         return "+" + digits;
     }
+
+    /** True if the input plausibly contains a real phone number (enough digits), false for junk like "abc". */
+    public static boolean isPlausible(String raw) {
+        if (raw == null) return false;
+        String digits = raw.replaceAll("\\D", "");
+        return digits.length() >= 10 && digits.length() <= 15;
+    }
 }
