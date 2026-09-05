@@ -89,8 +89,9 @@ public class Tutor {
     private Integer feeMin;
     private Integer feeMax;
 
-    // 0-100, feeds the 0.10 completeness term of the published ranking. Nothing computes
-    // it yet - Phase 2 owns the formula, since that is where it first has an effect.
+    // 0-100, feeds the 0.10 completeness term of the published ranking. Computed and
+    // persisted by TutorCompletenessService whenever a tutor submits or edits their
+    // profile - see that class for what counts toward it.
     @JsonIgnore
     @Column(nullable = false)
     private Integer completenessScore = 0;
@@ -103,6 +104,15 @@ public class Tutor {
     // The public "Verified" badge renders only when this is set. Being APPROVED is not the
     // same thing as being verified.
     private Instant verifiedAt;
+
+    // Filled in by TutorSearchService for a specific search request, never persisted. Lets a
+    // search response tell a parent "3.2 km away" using the exact number that decided the
+    // sort order, instead of the frontend re-deriving it (and risking a different answer).
+    @Transient
+    private Double distanceKm;
+
+    @Transient
+    private Double rankScore;
 
     private String priceType;
     private Integer price;
@@ -206,6 +216,11 @@ public class Tutor {
     public void setResponseRate(Double responseRate) { this.responseRate = responseRate; }
     public Instant getVerifiedAt() { return verifiedAt; }
     public void setVerifiedAt(Instant verifiedAt) { this.verifiedAt = verifiedAt; }
+    public Double getDistanceKm() { return distanceKm; }
+    public void setDistanceKm(Double distanceKm) { this.distanceKm = distanceKm; }
+    @JsonIgnore
+    public Double getRankScore() { return rankScore; }
+    public void setRankScore(Double rankScore) { this.rankScore = rankScore; }
 
     // The badge is a promise, so it is tied to a verification record existing - never to
     // status alone.

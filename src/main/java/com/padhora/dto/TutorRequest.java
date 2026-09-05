@@ -31,6 +31,13 @@ public class TutorRequest {
 
     private List<GradeSubjects> gradeSubjects;
 
+    // Structured teaching scope, by slug (see GET /api/grades, GET /api/subjects). Optional
+    // for now so older/unmigrated callers keep working, but a tutor submitted without these
+    // will not appear in a grade- or subject-filtered search - only in the legacy free-text
+    // display. dashboard.html sends these; keep both in sync if you touch the signup flow.
+    private List<String> gradeSlugs;
+    private List<String> subjectSlugs;
+
     private String priceType;
     private Integer price;
     private String priceUnit;
@@ -64,6 +71,10 @@ public class TutorRequest {
     public void setTypes(List<String> types) { this.types = types; }
     public List<GradeSubjects> getGradeSubjects() { return gradeSubjects; }
     public void setGradeSubjects(List<GradeSubjects> gradeSubjects) { this.gradeSubjects = gradeSubjects; }
+    public List<String> getGradeSlugs() { return gradeSlugs; }
+    public void setGradeSlugs(List<String> gradeSlugs) { this.gradeSlugs = gradeSlugs; }
+    public List<String> getSubjectSlugs() { return subjectSlugs; }
+    public void setSubjectSlugs(List<String> subjectSlugs) { this.subjectSlugs = subjectSlugs; }
     public String getPriceType() { return priceType; }
     public void setPriceType(String priceType) { this.priceType = priceType; }
     public Integer getPrice() { return price; }
