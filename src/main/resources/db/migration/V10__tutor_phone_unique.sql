@@ -1,15 +1,14 @@
--- Phase 4: phone becomes a login identity alongside email, so it needs the same uniqueness
--- guarantee email already has.
+-- Phase 4: a dedicated identity column for phone-OTP login, separate from the existing
+-- `phone` contact field.
 --
--- A plain UNIQUE constraint on a nullable column is safe in Postgres - multiple NULLs are
--- never considered equal, so tutors with no phone on file are unaffected. This only rejects
--- two tutors sharing the exact same non-null string.
+-- The first version of this migration tried to make `phone` itself unique. That failed
+-- against real production data: two existing tutors share the value '7837630824'. `phone`
+-- is free text a tutor types into their own profile as contact info - it was never
+-- validated for uniqueness and was never safe to repurpose as a login identity.
 --
--- KNOWN LIMITATION, not fixed here: this compares raw strings, not normalised phone numbers.
--- An old profile-entered phone ("9800000001") and a new phone-OTP account for the same real
--- person ("+919800000001", E.164 - see PhoneUtil) will NOT collide, because the strings
--- differ, even though they're the same number. At current scale (no real tutors yet) that
--- risk is worth accepting rather than writing reconciliation logic nobody needs yet. If
--- account-merging by phone ever matters, normalise existing tutors.phone to E.164 in a
--- follow-up migration first.
-ALTER TABLE tutors ADD CONSTRAINT uq_tutors_phone UNIQUE (phone);
+-- auth_phone is nullable, unique, and populated ONLY by the phone-OTP flow
+-- (AuthController), always normalised to E.164 (see PhoneUtil). The existing `phone` column
+-- is completely untouched by this migration - no data moved, no rows deduplicated, no risk
+-- to real tutor contact info.
+ALTER TABLE tutors ADD COLUMN auth_phone VARCHAR(20);
+ALTER TABLE tutors ADD CONSTRAINT uq_tutors_auth_phone UNIQUE (auth_phone);

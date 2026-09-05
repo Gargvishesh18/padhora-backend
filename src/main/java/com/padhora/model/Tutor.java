@@ -31,6 +31,13 @@ public class Tutor {
 
     private String phone;
 
+    // Login identity for the phone-OTP flow (Phase 4), always E.164-normalised. Deliberately
+    // separate from `phone` above, which is free-text contact info a tutor types into their
+    // own profile and was never validated for uniqueness - see migration V10 for why reusing
+    // it as an identity column broke on real data.
+    @Column(unique = true)
+    private String authPhone;
+
     private String area;
 
     // Specific locality/sector within the area, e.g. "Phase 5, Mohali" - from Places autocomplete
@@ -157,6 +164,8 @@ public class Tutor {
     public void setName(String name) { this.name = name; }
     public String getPhone() { return phone; }
     public void setPhone(String phone) { this.phone = phone; }
+    public String getAuthPhone() { return authPhone; }
+    public void setAuthPhone(String authPhone) { this.authPhone = authPhone; }
     public String getArea() { return area; }
     public void setArea(String area) { this.area = area; }
     public String getLocality() { return locality; }

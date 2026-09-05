@@ -131,10 +131,15 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Incorrect or expired code."));
         }
 
-        // Find-or-create: a verified phone IS the account. First-ever verification for a
-        // number creates a fresh DRAFT tutor, same starting state as email signup.
-        Tutor t = tutorRepository.findByPhone(e164).orElseGet(() -> {
+        // Find-or-create: a verified phone IS the account. Looked up via authPhone, a
+        // dedicated identity column - NOT the free-text `phone` contact field, which real
+        // tutors have already entered non-uniquely (see migration V10). First-ever
+        // verification for a number creates a fresh DRAFT tutor, same starting state as
+        // email signup, with `phone` prefilled too so the profile has a contact number by
+        // default - a tutor can still edit it separately from their login number.
+        Tutor t = tutorRepository.findByAuthPhone(e164).orElseGet(() -> {
             Tutor fresh = new Tutor();
+            fresh.setAuthPhone(e164);
             fresh.setPhone(e164);
             fresh.setStatus(Tutor.Status.DRAFT);
             return tutorRepository.save(fresh);
