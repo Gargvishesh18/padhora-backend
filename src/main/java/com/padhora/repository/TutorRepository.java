@@ -11,6 +11,7 @@ import java.util.Optional;
 public interface TutorRepository extends JpaRepository<Tutor, Long> {
 
     Optional<Tutor> findByEmail(String email);
+    Optional<Tutor> findByPhone(String phone);
 
     // Base candidate fetch for search: status + the filters that can be expressed as an exact
     // match or a join. Distance filtering and ranking happen afterwards in

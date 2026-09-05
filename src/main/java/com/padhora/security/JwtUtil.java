@@ -24,16 +24,17 @@ public class JwtUtil {
         return Keys.hmacShaKeyFor(Decoders.BASE64.decode(secret));
     }
 
+    // email is optional so phone-authenticated tutors (Phase 4) can get a token too - the
+    // claim is simply omitted rather than stored as a literal "null" string.
     public String generateToken(Long tutorId, String email) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + EXPIRATION_MS);
-        return Jwts.builder()
+        var builder = Jwts.builder()
                 .subject(String.valueOf(tutorId))
-                .claim("email", email)
                 .issuedAt(now)
-                .expiration(expiry)
-                .signWith(key())
-                .compact();
+                .expiration(expiry);
+        if (email != null) builder.claim("email", email);
+        return builder.signWith(key()).compact();
     }
 
     public Long validateAndGetTutorId(String token) {

@@ -1,0 +1,15 @@
+-- Phase 4: phone becomes a login identity alongside email, so it needs the same uniqueness
+-- guarantee email already has.
+--
+-- A plain UNIQUE constraint on a nullable column is safe in Postgres - multiple NULLs are
+-- never considered equal, so tutors with no phone on file are unaffected. This only rejects
+-- two tutors sharing the exact same non-null string.
+--
+-- KNOWN LIMITATION, not fixed here: this compares raw strings, not normalised phone numbers.
+-- An old profile-entered phone ("9800000001") and a new phone-OTP account for the same real
+-- person ("+919800000001", E.164 - see PhoneUtil) will NOT collide, because the strings
+-- differ, even though they're the same number. At current scale (no real tutors yet) that
+-- risk is worth accepting rather than writing reconciliation logic nobody needs yet. If
+-- account-merging by phone ever matters, normalise existing tutors.phone to E.164 in a
+-- follow-up migration first.
+ALTER TABLE tutors ADD CONSTRAINT uq_tutors_phone UNIQUE (phone);
