@@ -3,13 +3,17 @@ package com.padhora.model;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.time.Instant;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 @Entity
 @Table(name = "tutors")
 public class Tutor {
 
-    public enum Status { DRAFT, PENDING, APPROVED, REJECTED }
+    // PAUSED: the tutor is full or away. Their listing stops appearing in search, but
+    // nothing is deleted and they are not "rejected" - they flip it back themselves.
+    public enum Status { DRAFT, PENDING, APPROVED, REJECTED, PAUSED }
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -49,9 +53,56 @@ public class Tutor {
     @Column(name = "tuition_type")
     private List<String> types;
 
+    // Free-text "Class 6 - Class 8" -> "Math, Science". Unsearchable, and the reason the
+    // site can filter by help-type and mode but not by subject or grade. Superseded by the
+    // normalised `subjects`/`grades` below, which migration V7 backfilled from this. Kept
+    // because it is still what the live listing renders; Phase 2 moves reads across and a
+    // later migration retires it.
     @ElementCollection
     @CollectionTable(name = "tutor_grade_subjects", joinColumns = @JoinColumn(name = "tutor_id"))
     private List<GradeSubjects> gradeSubjects;
+
+    // Not serialized yet. Phase 1 is the data model; Phase 2 exposes these through a DTO
+    // with an explicit fetch join. Serializing a lazy association straight out of the
+    // entity would quietly turn one search into an N+1 query storm.
+    @JsonIgnore
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(name = "tutor_subjects",
+            joinColumns = @JoinColumn(name = "tutor_id"),
+            inverseJoinColumns = @JoinColumn(name = "subject_id"))
+    private Set<Subject> subjects = new LinkedHashSet<>();
+
+    @JsonIgnore
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(name = "tutor_grades",
+            joinColumns = @JoinColumn(name = "tutor_id"),
+            inverseJoinColumns = @JoinColumn(name = "grade_id"))
+    private Set<Grade> grades = new LinkedHashSet<>();
+
+    // The seeded locality this tutor teaches in. `locality` above stays as the free-text
+    // label the tutor typed; this is the one distance search can rely on.
+    @JsonIgnore
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "locality_id")
+    private Locality localityRef;
+
+    private Integer feeMin;
+    private Integer feeMax;
+
+    // 0-100, feeds the 0.10 completeness term of the published ranking. Nothing computes
+    // it yet - Phase 2 owns the formula, since that is where it first has an effect.
+    @JsonIgnore
+    @Column(nullable = false)
+    private Integer completenessScore = 0;
+
+    // 0.0-1.0, or null for "not asked yet". Null is not zero: a tutor nobody has contacted
+    // has not failed to respond, and must not be ranked as though they had.
+    @JsonIgnore
+    private Double responseRate;
+
+    // The public "Verified" badge renders only when this is set. Being APPROVED is not the
+    // same thing as being verified.
+    private Instant verifiedAt;
 
     private String priceType;
     private Integer price;
@@ -138,6 +189,28 @@ public class Tutor {
     public void setYearsExperience(Integer yearsExperience) { this.yearsExperience = yearsExperience; }
     public Status getStatus() { return status; }
     public void setStatus(Status status) { this.status = status; }
+
+    public Set<Subject> getSubjects() { return subjects; }
+    public void setSubjects(Set<Subject> subjects) { this.subjects = subjects; }
+    public Set<Grade> getGrades() { return grades; }
+    public void setGrades(Set<Grade> grades) { this.grades = grades; }
+    public Locality getLocalityRef() { return localityRef; }
+    public void setLocalityRef(Locality localityRef) { this.localityRef = localityRef; }
+    public Integer getFeeMin() { return feeMin; }
+    public void setFeeMin(Integer feeMin) { this.feeMin = feeMin; }
+    public Integer getFeeMax() { return feeMax; }
+    public void setFeeMax(Integer feeMax) { this.feeMax = feeMax; }
+    public Integer getCompletenessScore() { return completenessScore; }
+    public void setCompletenessScore(Integer completenessScore) { this.completenessScore = completenessScore; }
+    public Double getResponseRate() { return responseRate; }
+    public void setResponseRate(Double responseRate) { this.responseRate = responseRate; }
+    public Instant getVerifiedAt() { return verifiedAt; }
+    public void setVerifiedAt(Instant verifiedAt) { this.verifiedAt = verifiedAt; }
+
+    // The badge is a promise, so it is tied to a verification record existing - never to
+    // status alone.
+    public boolean isVerified() { return verifiedAt != null; }
+
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
 }
