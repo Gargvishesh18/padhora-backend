@@ -1,42 +1,105 @@
 package com.padhora.controller;
 
 import com.padhora.dto.TutorRequest;
+import com.padhora.model.Grade;
+import com.padhora.model.Subject;
 import com.padhora.model.Tutor;
+import com.padhora.repository.GradeRepository;
+import com.padhora.repository.SubjectRepository;
 import com.padhora.repository.TutorRepository;
+import com.padhora.service.TutorCompletenessService;
+import com.padhora.service.TutorSearchService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api/tutors")
 public class TutorController {
 
     private final TutorRepository tutorRepository;
+    private final SubjectRepository subjectRepository;
+    private final GradeRepository gradeRepository;
+    private final TutorSearchService tutorSearchService;
+    private final TutorCompletenessService tutorCompletenessService;
 
     @Value("${padhora.admin-key}")
     private String adminKey;
 
-    public TutorController(TutorRepository tutorRepository) {
+    public TutorController(TutorRepository tutorRepository,
+                            SubjectRepository subjectRepository,
+                            GradeRepository gradeRepository,
+                            TutorSearchService tutorSearchService,
+                            TutorCompletenessService tutorCompletenessService) {
         this.tutorRepository = tutorRepository;
+        this.subjectRepository = subjectRepository;
+        this.gradeRepository = gradeRepository;
+        this.tutorSearchService = tutorSearchService;
+        this.tutorCompletenessService = tutorCompletenessService;
+    }
+
+    // Resolves each slug via its repository and drops anything unrecognised - a slug that no
+    // longer exists (an inactive subject/grade) should not blow up profile save, it should
+    // just not count for search.
+    private Set<Subject> resolveSubjects(List<String> slugs) {
+        Set<Subject> resolved = new LinkedHashSet<>();
+        if (slugs == null) return resolved;
+        for (String slug : slugs) {
+            subjectRepository.findBySlug(slug).ifPresent(resolved::add);
+        }
+        return resolved;
+    }
+
+    private Set<Grade> resolveGrades(List<String> slugs) {
+        Set<Grade> resolved = new LinkedHashSet<>();
+        if (slugs == null) return resolved;
+        for (String slug : slugs) {
+            gradeRepository.findBySlug(slug).ifPresent(resolved::add);
+        }
+        return resolved;
     }
 
     private boolean isAuthorized(String providedKey) {
         return adminKey != null && !adminKey.isBlank() && adminKey.equals(providedKey);
     }
 
-    // GET /api/tutors?area=Mohali&mode=Online&type=Exam+Prep
+    // GET /api/tutors?gradeSlug=class-5&subjectSlug=mathematics&mode=Online&type=Exam+Prep&lat=..&lng=..&radiusKm=5
     // Any param can be omitted to not filter on it. Only APPROVED listings are returned.
+    //
+    // Passing lat/lng ranks results by the published formula (see TutorSearchService) and
+    // fills in distanceKm on each result; radiusKm additionally excludes anything farther
+    // than that. Omitting lat/lng returns newest-first, unranked - used by callers that just
+    // want a count or a full list, not a parent's personalised search.
+    //
+    // `area` is the pre-Phase-2 filter (exact match on the tutor's city-level area string).
+    // Kept for callers that have not moved to locality/grade/subject search yet.
     @GetMapping
     public List<Tutor> search(
             @RequestParam(required = false) String area,
             @RequestParam(required = false) String mode,
-            @RequestParam(required = false) String type) {
-        return tutorRepository.search(area, mode, type);
+            @RequestParam(required = false) String type,
+            @RequestParam(required = false) String gradeSlug,
+            @RequestParam(required = false) String subjectSlug,
+            @RequestParam(required = false) Double lat,
+            @RequestParam(required = false) Double lng,
+            @RequestParam(required = false) Double radiusKm) {
+        TutorSearchService.Params params = new TutorSearchService.Params();
+        params.area = area;
+        params.mode = mode;
+        params.type = type;
+        params.gradeSlug = gradeSlug;
+        params.subjectSlug = subjectSlug;
+        params.lat = lat;
+        params.lng = lng;
+        params.radiusKm = radiusKm;
+        return tutorSearchService.search(params);
     }
 
     @GetMapping("/{id}")
@@ -73,6 +136,9 @@ public class TutorController {
         t.setPhotoUrl(req.getPhotoUrl());
         t.setVideoUrl(req.getVideoUrl());
         t.setYearsExperience(req.getYearsExperience());
+        t.setSubjects(resolveSubjects(req.getSubjectSlugs()));
+        t.setGrades(resolveGrades(req.getGradeSlugs()));
+        t.setCompletenessScore(tutorCompletenessService.score(t));
         t.setStatus(Tutor.Status.PENDING);
 
         Tutor saved = tutorRepository.save(t);
@@ -91,12 +157,24 @@ public class TutorController {
         return (Long) auth.getPrincipal();
     }
 
+    // Entity-level subjects/grades stay @JsonIgnore so the (potentially long) search list
+    // response never triggers a lazy load per tutor. /me returns exactly one tutor, so
+    // building an explicit view with the slugs resolved is cheap and lets dashboard.html
+    // show which subjects/grades are already selected when a tutor edits their profile.
+    private Map<String, Object> toMeView(Tutor t) {
+        Map<String, Object> m = new java.util.LinkedHashMap<>(toAdminView(t));
+        m.put("subjectSlugs", t.getSubjects().stream().map(Subject::getSlug).toList());
+        m.put("gradeSlugs", t.getGrades().stream().map(Grade::getSlug).toList());
+        m.put("verified", t.isVerified());
+        return m;
+    }
+
     @GetMapping("/me")
     public ResponseEntity<?> getMe() {
         Long tutorId = currentTutorId();
         if (tutorId == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         return tutorRepository.findById(tutorId)
-                .<ResponseEntity<?>>map(ResponseEntity::ok)
+                .<ResponseEntity<?>>map(t -> ResponseEntity.ok(toMeView(t)))
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -127,6 +205,9 @@ public class TutorController {
             t.setPhotoUrl(req.getPhotoUrl());
             t.setVideoUrl(req.getVideoUrl());
             t.setYearsExperience(req.getYearsExperience());
+            t.setSubjects(resolveSubjects(req.getSubjectSlugs()));
+            t.setGrades(resolveGrades(req.getGradeSlugs()));
+            t.setCompletenessScore(tutorCompletenessService.score(t));
             // First real save of a completed profile moves it from DRAFT into the review queue.
             // Edits after that go back to PENDING too, so admin re-checks anything a tutor changes.
             if (t.getStatus() == Tutor.Status.DRAFT || t.getStatus() == Tutor.Status.APPROVED) {
